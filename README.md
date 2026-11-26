@@ -75,8 +75,8 @@ whenever Claude Desktop starts.
    ```
 
    `--refresh` picks up the latest commit each time Claude Desktop starts. To stay on a
-   fixed version instead, drop `--refresh` and add `@v0.1.0` (a tag) or a commit hash to
-   the end of the git URL.
+   fixed version instead, drop `--refresh` and add `@` plus a commit hash (or a tag) to
+   the end of the git URL, for example `git+https://github.com/85advisors/fluidmeet-mcp@fbe08d2`.
 
 5. **Quit and reopen Claude Desktop**, then try something like *"What did we decide in my
    last meeting?"* or *"Search my meetings from this week for 'budget'."*
