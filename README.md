@@ -29,7 +29,21 @@ Meetings can be referred to by full id, the first 8 characters of the id, or `la
 - [uv](https://docs.astral.sh/uv/) (`brew install uv`). It installs the one Python
   dependency (the `mcp` package) automatically on first run.
 
-## Setup
+## Quick setup
+
+Paste this into Terminal. It installs uv if you don't have it yet, then adds the server
+to Claude Desktop (backing up your config first) and checks FluidVoice:
+
+```sh
+command -v uvx >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
+"$(command -v uvx || echo ~/.local/bin/uvx)" --from git+https://github.com/85advisors/fluidmeet-mcp fluidmeet-mcp install
+```
+
+If git asks for a username or password, sign git in to GitHub first (`brew install gh`,
+then `gh auth login`, then `gh auth setup-git`) and run it again. Then follow what the
+installer prints: turn on sharing in FluidVoice if needed, and restart Claude Desktop.
+
+## Manual setup
 
 There's nothing to clone. `uvx` installs the server straight from GitHub and runs it
 whenever Claude Desktop starts.

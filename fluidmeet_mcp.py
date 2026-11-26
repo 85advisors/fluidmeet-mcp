@@ -13,9 +13,11 @@ FluidVoice's own sharing switch (FluidMeet settings > Integrations) stays in cha
 from __future__ import annotations
 
 import glob
+import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
@@ -23,6 +25,8 @@ from mcp.server.fastmcp.exceptions import ToolError
 
 HELPER = Path("Contents/Helpers/fv-serve")
 TIMEOUT_SECONDS = 120
+REPO_URL = "git+https://github.com/85advisors/fluidmeet-mcp"
+SERVER_NAME = "fluidmeet"
 
 INSTRUCTIONS = """\
 Read the user's FluidVoice (FluidMeet) meetings recorded on this Mac. Read-only.
@@ -188,7 +192,66 @@ def sharing_status() -> str:
     return run("status", "--json")
 
 
+def find_uvx() -> str | None:
+    """The uvx that Claude Desktop should launch, as a full path (it ignores your shell PATH)."""
+    candidates = [
+        shutil.which("uvx"),
+        os.path.expanduser("~/.local/bin/uvx"),
+        "/opt/homebrew/bin/uvx",
+        "/usr/local/bin/uvx",
+    ]
+    for candidate in candidates:
+        if candidate and os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+
+def install(argv: list[str]) -> int:
+    """`fluidmeet-mcp install`: add this server to Claude Desktop's config and check FluidVoice."""
+    config_path = Path.home() / "Library/Application Support/Claude/claude_desktop_config.json"
+    source = argv[argv.index("--from") + 1] if "--from" in argv else REPO_URL
+
+    uvx = find_uvx()
+    if not uvx:
+        print("Could not find uvx. Install uv first:  curl -LsSf https://astral.sh/uv/install.sh | sh")
+        return 1
+
+    config: dict = {}
+    if config_path.exists():
+        try:
+            config = json.loads(config_path.read_text() or "{}")
+        except json.JSONDecodeError as error:
+            print(f"{config_path} is not valid JSON ({error}). Fix it first; nothing was changed.")
+            return 1
+        backup = config_path.with_name(config_path.name + ".bak")
+        shutil.copy2(config_path, backup)
+        print(f"Backed up your Claude Desktop config to {backup}")
+
+    servers = config.setdefault("mcpServers", {})
+    servers[SERVER_NAME] = {"command": uvx, "args": ["--refresh", "--from", source, "fluidmeet-mcp"]}
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(json.dumps(config, indent=2) + "\n")
+    print(f'Added "{SERVER_NAME}" to {config_path}')
+
+    print()
+    try:
+        status = json.loads(run("status", "--json"))
+        if status.get("access"):
+            print(f"FluidVoice is sharing meetings ({status.get('meetings', 0)} available). All set.")
+        else:
+            print("FluidVoice is installed, but meeting sharing is off. In FluidVoice open")
+            print('FluidMeet settings > Integrations and press "Copy instructions" under "Other agents".')
+    except (ToolError, ValueError) as error:
+        print(f"FluidVoice check: {error}")
+
+    print()
+    print("Now quit Claude Desktop completely (Cmd+Q) and reopen it.")
+    return 0
+
+
 def main() -> None:
+    if sys.argv[1:2] == ["install"]:
+        sys.exit(install(sys.argv[2:]))
     mcp.run()
 
 
