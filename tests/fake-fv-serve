@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""Stand-in for FluidVoice's fv-serve, for testing fluidmeet_mcp.py without FluidVoice.
+
+Set FAKE_ACCESS=off to simulate meeting sharing being turned off.
+Records each call's arguments in $FAKE_LOG when that is set.
+"""
+
+import json
+import os
+import sys
+
+args = sys.argv[1:]
+if log := os.environ.get("FAKE_LOG"):
+    with open(log, "a") as f:
+        f.write(json.dumps(args) + "\n")
+
+MEETING = {
+    "id": "3F2A9C1E-0000-4000-8000-000000000001",
+    "title": "Weekly sync",
+    "startedAt": "2026-11-25T15:00:00Z",
+    "durationSeconds": 1800,
+    "languageCode": "en",
+    "speakers": ["Steven", "Amy"],
+    "summaries": ["general"],
+    "outdatedSummaries": [],
+}
+
+if args[:1] == ["status"]:
+    print(json.dumps({"access": os.environ.get("FAKE_ACCESS") != "off", "meetings": 1}))
+    sys.exit(0)
+
+if os.environ.get("FAKE_ACCESS") == "off":
+    sys.stderr.write(
+        "FluidVoice is not sharing meetings with any agent yet. "
+        "In FluidVoice, open FluidMeet settings > Integrations and add your agent.\n"
+    )
+    sys.exit(2)
+
+match args[:2]:
+    case ["meet", "list"]:
+        print(json.dumps([MEETING], indent=2))
+    case ["meet", "show"]:
+        if args[2] not in ("latest", "3F2A9C1E"):
+            sys.stderr.write(f'No meeting matches "{args[2]}".\n')
+            sys.exit(1)
+        print("Weekly sync\n----------\n[00:05] Steven: Let's review the budget.\n[00:12] Amy: Agreed.")
+    case ["meet", "summary"]:
+        print("Weekly sync\n----------\nStyle: general\n\nBudget reviewed; Amy agreed.")
+    case ["meet", "search"]:
+        query = args[args.index("--") + 1]
+        print(f"3F2A9C1E  Nov 25, 2026  Weekly sync\n  [00:05] Steven: ...{query}...")
+    case _:
+        sys.stderr.write(f"Unknown command {args}\n")
+        sys.exit(1)
